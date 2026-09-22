@@ -1,0 +1,6 @@
+{
+  "name": "Julie AI",
+  "description": "A ChatGPT-style AI chatbot web application powered by the Gemini API.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
