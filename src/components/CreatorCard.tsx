@@ -2,10 +2,12 @@ import React, { useState, useEffect } from 'react';
 import {
   Sparkles,
   Award,
+  GraduationCap,
+  Building2,
   Code2,
-  Heart,
   UserCheck,
   CheckCircle2,
+  Cpu,
 } from 'lucide-react';
 import { ThemeMode } from '../types';
 import creatorPhoto from '../assets/creator.jpeg';
@@ -23,6 +25,7 @@ export const CreatorCard: React.FC<CreatorCardProps> = ({ theme }) => {
   const candidateUrls = [
     creatorPhoto,
     '/api/creator-image',
+    encodeURI('/Sidda Venkata Sai Tejasri.jpeg'),
     encodeURI('/Sidda Venkata Sai Tejashree.jpeg'),
     '/creator.jpeg',
     encodeURI('/WhatsApp Image 2026-09-22 at 5.36.59 PM.jpeg'),
@@ -124,7 +127,7 @@ export const CreatorCard: React.FC<CreatorCardProps> = ({ theme }) => {
             {imageSrc && !imageError ? (
               <img
                 src={imageSrc}
-                alt="Sidda Venkata Sai Tejashree"
+                alt="Sidda Venkata Sai Tejasri"
                 referrerPolicy="no-referrer"
                 onLoad={() => {
                   setImageLoaded(true);
@@ -146,23 +149,47 @@ export const CreatorCard: React.FC<CreatorCardProps> = ({ theme }) => {
 
         {/* Profile Details */}
         <div className="text-center sm:text-left flex-1 min-w-0">
-          <div className="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-2">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
             <h3 className="text-lg sm:text-xl font-bold tracking-tight text-inherit">
-              Sidda Venkata Sai Tejashree
+              Sidda Venkata Sai Tejasri
             </h3>
+            <span
+              className={`inline-block self-center sm:self-auto text-[11px] font-medium px-2 py-0.5 rounded-full ${
+                isDark
+                  ? 'bg-neutral-800 text-neutral-300 border border-neutral-700'
+                  : 'bg-neutral-100 text-neutral-600 border border-neutral-200'
+              }`}
+            >
+              19 years old
+            </span>
           </div>
 
-          <p className="text-xs sm:text-sm font-medium text-emerald-500 flex items-center justify-center sm:justify-start gap-1.5 mt-0.5">
+          <p className="text-xs sm:text-sm font-medium text-emerald-500 flex items-center justify-center sm:justify-start gap-1.5 mt-1">
             <Award className="w-3.5 h-3.5 shrink-0" />
             <span>Creator & Lead Developer of Julie AI</span>
           </p>
 
-          <p
-            className={`text-xs sm:text-sm mt-2.5 leading-relaxed ${
+          <div
+            className={`mt-2 text-xs flex flex-col gap-1 ${
               isDark ? 'text-neutral-300' : 'text-neutral-600'
             }`}
           >
-            Sidda Venkata Sai Tejashree designed, developed, and crafted Julie AI to provide an articulate, fast, and friendly conversational AI assistant experience.
+            <div className="flex items-center justify-center sm:justify-start gap-1.5 font-medium">
+              <GraduationCap className="w-3.5 h-3.5 text-teal-500 shrink-0" />
+              <span>B.Tech Student</span>
+            </div>
+            <div className="flex items-center justify-center sm:justify-start gap-1.5 text-[11.5px] opacity-90">
+              <Building2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+              <span>Visvodaya Institute of Technology and Science</span>
+            </div>
+          </div>
+
+          <p
+            className={`text-xs mt-2.5 leading-relaxed ${
+              isDark ? 'text-neutral-300' : 'text-neutral-600'
+            }`}
+          >
+            Julie AI was created and developed by Sidda Venkata Sai Tejasri, a 19-year-old B.Tech student at Visvodaya Institute of Technology and Science. She is interested in technology, software development, problem-solving, AI, and building useful applications while continuously improving her technical skills.
           </p>
         </div>
       </div>
@@ -188,7 +215,7 @@ export const CreatorCard: React.FC<CreatorCardProps> = ({ theme }) => {
           }`}
         >
           <Code2 className="w-3.5 h-3.5 text-teal-500" />
-          <span>Full-Stack Architecture</span>
+          <span>Software & Web Development</span>
         </div>
 
         <div
@@ -198,8 +225,8 @@ export const CreatorCard: React.FC<CreatorCardProps> = ({ theme }) => {
               : 'bg-neutral-100 border-neutral-200 text-neutral-700'
           }`}
         >
-          <Heart className="w-3.5 h-3.5 text-rose-500" />
-          <span>Built with Pride</span>
+          <Cpu className="w-3.5 h-3.5 text-emerald-500" />
+          <span>AI & Problem-Solving</span>
         </div>
       </div>
     </div>

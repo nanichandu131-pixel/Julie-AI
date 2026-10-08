@@ -34,7 +34,11 @@ export function isCreatorQuery(rawText: string): boolean {
     'tell me about your creator',
     'tell me who created you',
     'tell me who developed you',
+    'who is sidda venkata sai tejasri',
     'who is sidda venkata sai tejashree',
+    'who is tejasri',
+    'about your creator',
+    'about your developer',
   ];
 
   if (exactPatterns.some((pattern) => text.includes(pattern))) {

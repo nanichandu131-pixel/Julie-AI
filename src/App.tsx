@@ -39,6 +39,76 @@ export default function App() {
     return !(session && session.messages && session.messages.length > 0);
   });
   const [attachments, setAttachments] = useState<FileAttachment[]>([]);
+  const [speakingMessageId, setSpeakingMessageId] = useState<string | null>(null);
+
+  // Stop browser speech synthesis
+  const stopSpeech = useCallback(() => {
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      try {
+        window.speechSynthesis.cancel();
+      } catch {
+        // ignore
+      }
+    }
+    setSpeakingMessageId(null);
+  }, []);
+
+  // Text-to-speech toggler for individual AI messages
+  const handleToggleSpeak = useCallback(
+    (messageId: string, textToSpeak: string) => {
+      if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
+        return;
+      }
+
+      // If already speaking THIS message, stop it
+      if (speakingMessageId === messageId) {
+        stopSpeech();
+        return;
+      }
+
+      // Stop previous speech if another response is selected
+      try {
+        window.speechSynthesis.cancel();
+      } catch {
+        // ignore
+      }
+
+      // Clean markdown syntax for natural browser speech
+      const cleanText = textToSpeak
+        .replace(/```[\s\S]*?```/g, 'Code block omitted.')
+        .replace(/`([^`]+)`/g, '$1')
+        .replace(/#+\s*/g, '')
+        .replace(/(\*\*|__)(.*?)\1/g, '$2')
+        .replace(/(\*|_)(.*?)\1/g, '$2')
+        .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+        .replace(/!\[([^\]]*)\]\([^)]+\)/g, '')
+        .replace(/>\s*/g, '')
+        .replace(/[-*+]\s+/g, '')
+        .replace(/\n+/g, ' ')
+        .trim();
+
+      if (!cleanText) return;
+
+      const utterance = new SpeechSynthesisUtterance(cleanText);
+      utterance.lang = 'en-US';
+      utterance.rate = 1.0;
+      utterance.pitch = 1.0;
+
+      utterance.onend = () => {
+        setSpeakingMessageId(null);
+      };
+      utterance.onerror = (e) => {
+        if (e.error !== 'canceled' && e.error !== 'interrupted') {
+          console.warn('SpeechSynthesis error:', e);
+        }
+        setSpeakingMessageId(null);
+      };
+
+      setSpeakingMessageId(messageId);
+      window.speechSynthesis.speak(utterance);
+    },
+    [speakingMessageId, stopSpeech]
+  );
 
   // Confirmation modal state
   const [modalState, setModalState] = useState<{
@@ -110,6 +180,7 @@ export default function App() {
 
   // Start a new chat session
   const handleNewChat = useCallback(() => {
+    stopSpeech();
     if (isStreaming && abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
@@ -122,7 +193,7 @@ export default function App() {
       const textarea = document.getElementById('chat-input-textarea') as HTMLTextAreaElement | null;
       textarea?.focus();
     }, 50);
-  }, [isStreaming]);
+  }, [isStreaming, stopSpeech]);
 
   // Navigate to Landing Page
   const handleGoHome = useCallback(() => {
@@ -181,11 +252,48 @@ export default function App() {
 
       let accumulated = '';
 
+      // Capture client local time context and timezone
+      const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+      const now = new Date();
+      const localTimeString = now.toLocaleString('en-US', {
+        dateStyle: 'full',
+        timeStyle: 'long',
+        timeZone,
+      });
+
+      // Attempt to retrieve user location if permitted
+      let locationCoords: { latitude: number; longitude: number } | undefined = undefined;
+      if (typeof navigator !== 'undefined' && 'geolocation' in navigator) {
+        try {
+          const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition(resolve, reject, {
+              timeout: 1500,
+              maximumAge: 600000,
+            });
+          });
+          if (pos && pos.coords) {
+            locationCoords = {
+              latitude: pos.coords.latitude,
+              longitude: pos.coords.longitude,
+            };
+          }
+        } catch {
+          // Location not granted or timed out; will ask user for city if needed
+        }
+      }
+
       try {
         const response = await fetch('/api/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ messages: historyForApi }),
+          body: JSON.stringify({
+            messages: historyForApi,
+            clientContext: {
+              timeZone,
+              localTime: localTimeString,
+              location: locationCoords,
+            },
+          }),
           signal: abortControllerRef.current.signal,
         });
 
@@ -305,14 +413,14 @@ export default function App() {
           }
 
           const lower = rawError.toLowerCase();
-          if (lower.includes('503') || lower.includes('unavailable') || lower.includes('high demand')) {
+          if (rawError && !rawError.startsWith('{') && rawError.length > 5) {
+            errorMsg = rawError;
+          } else if (lower.includes('503') || lower.includes('unavailable') || lower.includes('high demand')) {
             errorMsg = 'The AI service is temporarily experiencing high demand. Please wait a moment and click "Try again".';
           } else if (lower.includes('429') || lower.includes('quota') || lower.includes('resource_exhausted')) {
             errorMsg = 'Rate limit reached. Please wait a moment before sending another message.';
           } else if (lower.includes('api_key') || lower.includes('apikey') || lower.includes('401') || lower.includes('403')) {
             errorMsg = 'Invalid or missing Gemini API key. Please check your configuration in Settings > Secrets.';
-          } else if (rawError && !rawError.startsWith('{')) {
-            errorMsg = rawError;
           }
 
           setSessions((prev) =>
@@ -377,7 +485,7 @@ export default function App() {
       id: assistantMsgId,
       role: 'assistant',
       content: isCreator
-        ? 'Sidda Venkata Sai Tejashree is the creator and lead developer of Julie AI.'
+        ? 'Julie AI was created and developed by Sidda Venkata Sai Tejasri, a 19-year-old B.Tech student at Visvodaya Institute of Technology and Science. She is interested in technology, software development, problem-solving, AI, and building useful applications while continuously improving her technical skills.'
         : '',
       timestamp: Date.now() + 1,
       isStreaming: !isCreator,
@@ -459,6 +567,7 @@ export default function App() {
 
   // Stop generation
   const handleStopGeneration = () => {
+    stopSpeech();
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
@@ -491,7 +600,7 @@ export default function App() {
       id: newAssistantMsgId,
       role: 'assistant',
       content: isCreator
-        ? 'Sidda Venkata Sai Tejashree is the creator and lead developer of Julie AI.'
+        ? 'Julie AI was created and developed by Sidda Venkata Sai Tejasri, a 19-year-old B.Tech student at Visvodaya Institute of Technology and Science. She is interested in technology, software development, problem-solving, AI, and building useful applications while continuously improving her technical skills.'
         : '',
       timestamp: Date.now(),
       isStreaming: !isCreator,
@@ -543,7 +652,7 @@ export default function App() {
       id: newAssistantMsgId,
       role: 'assistant',
       content: isCreator
-        ? 'Sidda Venkata Sai Tejashree is the creator and lead developer of Julie AI.'
+        ? 'Julie AI was created and developed by Sidda Venkata Sai Tejasri, a 19-year-old B.Tech student at Visvodaya Institute of Technology and Science. She is interested in technology, software development, problem-solving, AI, and building useful applications while continuously improving her technical skills.'
         : '',
       timestamp: Date.now(),
       isStreaming: !isCreator,
@@ -665,6 +774,7 @@ export default function App() {
         onCloseMobile={() => setIsOpenMobile(false)}
         onNewChat={handleNewChat}
         onSelectSession={(id) => {
+          stopSpeech();
           setCurrentSessionId(id);
           setShowLandingPage(false);
         }}
@@ -787,6 +897,8 @@ export default function App() {
                       onEditUserMessage={handleEditUserMessage}
                       onRetry={handleRetry}
                       onFeedback={handleMessageFeedback}
+                      isSpeaking={speakingMessageId === msg.id}
+                      onToggleSpeak={handleToggleSpeak}
                     />
                   );
                 })}

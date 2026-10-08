@@ -12,6 +12,8 @@ import {
   ThumbsDown,
   FileText,
   Image as ImageIcon,
+  Volume2,
+  VolumeX,
 } from 'lucide-react';
 import { ChatMessage, ThemeMode } from '../types';
 import { MarkdownRenderer } from './MarkdownRenderer';
@@ -26,6 +28,8 @@ interface ChatMessageItemProps {
   onEditUserMessage: (messageId: string, newContent: string) => void;
   onRetry: () => void;
   onFeedback: (messageId: string, feedback: 'positive' | 'negative') => void;
+  isSpeaking?: boolean;
+  onToggleSpeak?: (messageId: string, text: string) => void;
 }
 
 export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
@@ -37,6 +41,8 @@ export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
   onEditUserMessage,
   onRetry,
   onFeedback,
+  isSpeaking,
+  onToggleSpeak,
 }) => {
   const isDark = theme === 'dark';
   const isUser = message.role === 'user';
@@ -273,6 +279,39 @@ export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
                     </>
                   )}
                 </button>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    onToggleSpeak?.(
+                      message.id,
+                      'Julie AI was created and developed by Sidda Venkata Sai Tejasri, a 19-year-old B.Tech student at Visvodaya Institute of Technology and Science. She is interested in technology, software development, problem-solving, AI, and building useful applications while continuously improving her technical skills.'
+                    )
+                  }
+                  title={isSpeaking ? 'Stop speaking' : 'Speak creator info aloud'}
+                  aria-label={isSpeaking ? 'Stop speaking' : 'Speak creator info aloud'}
+                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs transition-colors cursor-pointer ${
+                    isSpeaking
+                      ? isDark
+                        ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                        : 'bg-emerald-100 text-emerald-700 border border-emerald-300'
+                      : isDark
+                      ? 'text-neutral-400 hover:text-white hover:bg-neutral-800'
+                      : 'text-neutral-500 hover:text-neutral-900 hover:bg-neutral-100'
+                  }`}
+                >
+                  {isSpeaking ? (
+                    <>
+                      <VolumeX className="w-3.5 h-3.5 text-emerald-400" />
+                      <span className="font-medium text-emerald-400">Stop</span>
+                    </>
+                  ) : (
+                    <>
+                      <Volume2 className="w-3.5 h-3.5" />
+                      <span>Speak</span>
+                    </>
+                  )}
+                </button>
               </div>
             </div>
           ) : (
@@ -325,6 +364,37 @@ export const ChatMessageItem: React.FC<ChatMessageItemProps> = ({
               {/* Action Bar Below Julie AI Response */}
               {!message.error && message.content && !message.isStreaming && (
                 <div className="flex flex-wrap items-center gap-2 mt-3 pt-2.5 border-t border-neutral-700/30">
+                  {/* Speak / Stop Button */}
+                  <button
+                    type="button"
+                    onClick={() => onToggleSpeak?.(message.id, message.content)}
+                    title={isSpeaking ? 'Stop speaking' : 'Speak response aloud'}
+                    aria-label={isSpeaking ? 'Stop speaking' : 'Speak response aloud'}
+                    className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-xs transition-colors cursor-pointer ${
+                      isSpeaking
+                        ? isDark
+                          ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                          : 'bg-emerald-100 text-emerald-700 border border-emerald-300'
+                        : isDark
+                        ? 'text-neutral-400 hover:text-white hover:bg-neutral-800'
+                        : 'text-neutral-500 hover:text-neutral-900 hover:bg-neutral-100'
+                    }`}
+                  >
+                    {isSpeaking ? (
+                      <>
+                        <VolumeX className="w-3.5 h-3.5 text-emerald-400" />
+                        <span className="font-medium text-emerald-400">Stop</span>
+                      </>
+                    ) : (
+                      <>
+                        <Volume2 className="w-3.5 h-3.5" />
+                        <span>Speak</span>
+                      </>
+                    )}
+                  </button>
+
+                  <div className="w-px h-3.5 bg-neutral-700/40 mx-0.5" />
+
                   {/* Copy Response Button */}
                   <button
                     type="button"

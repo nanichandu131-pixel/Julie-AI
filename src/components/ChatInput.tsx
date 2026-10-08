@@ -72,14 +72,20 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     }
   }, [input]);
 
+  const speechStartTextRef = useRef<string>('');
+
   // Web Speech API speech-to-text initialization
-  const toggleSpeechRecognition = () => {
+  const toggleSpeechRecognition = async () => {
     setSpeechError(null);
 
-    // If currently listening, stop
+    // If currently listening, stop cleanly
     if (isListening) {
       if (recognitionRef.current) {
-        recognitionRef.current.stop();
+        try {
+          recognitionRef.current.stop();
+        } catch {
+          // ignore
+        }
       }
       setIsListening(false);
       return;
@@ -89,45 +95,83 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
 
     if (!SpeechRecognition) {
-      setSpeechError('Speech recognition is not supported in this browser.');
-      setTimeout(() => setSpeechError(null), 4000);
+      setSpeechError('Speech-to-text is not supported by your browser. Please try Google Chrome, Edge, or Safari.');
+      setTimeout(() => setSpeechError(null), 5000);
       return;
     }
 
+    // Step 1: Request microphone permission explicitly via getUserMedia
+    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        // Release the test tracks immediately so SpeechRecognition has full microphone access
+        stream.getTracks().forEach((track) => track.stop());
+      } catch (permErr: any) {
+        if (permErr.name === 'NotAllowedError' || permErr.name === 'PermissionDeniedError') {
+          setSpeechError('Microphone permission was denied. Please allow microphone access in your browser settings.');
+          setIsListening(false);
+          setTimeout(() => setSpeechError(null), 5000);
+          return;
+        } else if (permErr.name === 'NotFoundError') {
+          setSpeechError('No microphone detected. Please connect a microphone and try again.');
+          setIsListening(false);
+          setTimeout(() => setSpeechError(null), 5000);
+          return;
+        }
+        // For other non-blocking errors, proceed to SpeechRecognition
+      }
+    }
+
+    // Step 2: Initialize and start SpeechRecognition
     try {
       const recognition = new SpeechRecognition();
       recognition.continuous = true;
       recognition.interimResults = true;
       recognition.lang = 'en-US';
 
-      let initialInput = input;
+      speechStartTextRef.current = input;
 
       recognition.onstart = () => {
         setIsListening(true);
-        initialInput = input;
+        speechStartTextRef.current = input;
       };
 
       recognition.onresult = (event: any) => {
-        let transcript = '';
-        for (let i = event.resultIndex; i < event.results.length; i++) {
-          transcript += event.results[i][0].transcript;
+        let finalStr = '';
+        let interimStr = '';
+
+        for (let i = 0; i < event.results.length; i++) {
+          const result = event.results[i];
+          const text = result[0]?.transcript || '';
+          if (result.isFinal) {
+            finalStr += text;
+          } else {
+            interimStr += text;
+          }
         }
 
-        if (transcript) {
-          const space = initialInput && !initialInput.endsWith(' ') ? ' ' : '';
-          setInput(initialInput + space + transcript);
-        }
+        const totalTranscript = (finalStr + (interimStr ? ' ' + interimStr : '')).trim();
+        const basePrefix = speechStartTextRef.current.trim();
+        const combined = basePrefix
+          ? totalTranscript
+            ? `${basePrefix} ${totalTranscript}`
+            : basePrefix
+          : totalTranscript;
+
+        setInput(combined);
       };
 
       recognition.onerror = (event: any) => {
         console.warn('Speech recognition error:', event.error);
         if (event.error === 'not-allowed') {
           setSpeechError('Microphone permission was denied.');
-        } else if (event.error !== 'no-speech') {
-          setSpeechError(`Voice input error: ${event.error}`);
+        } else if (event.error === 'no-speech') {
+          // Normal timeout if user was silent, don't show loud error
+        } else if (event.error !== 'aborted') {
+          setSpeechError(`Voice input issue: ${event.error}`);
         }
         setIsListening(false);
-        setTimeout(() => setSpeechError(null), 4000);
+        setTimeout(() => setSpeechError(null), 5000);
       };
 
       recognition.onend = () => {
@@ -138,9 +182,9 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       recognition.start();
     } catch (err: any) {
       console.error('Failed to start speech recognition:', err);
-      setSpeechError('Could not start microphone.');
+      setSpeechError('Could not start microphone input.');
       setIsListening(false);
-      setTimeout(() => setSpeechError(null), 4000);
+      setTimeout(() => setSpeechError(null), 5000);
     }
   };
 
